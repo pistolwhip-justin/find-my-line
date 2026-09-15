@@ -1,0 +1,123 @@
+name: Create Find-My-Line Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      recreate:
+        description: 'Create a new project even if one with the same name already exists'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create project and development issues
+        env:
+          GH_TOKEN: ${{ secrets.FIND_MY_LINE_PROJECT_TOKEN }}
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RECREATE: ${{ inputs.recreate }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          OWNER="pistolwhip-justin"
+          PROJECT_TITLE="Find-My-Line Development"
+
+          echo "Checking project access..."
+          gh api graphql -f query='query { viewer { login } }' >/dev/null
+
+          echo "Getting owner node ID..."
+          OWNER_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ id } }' -f login="$OWNER" --jq '.data.user.id')
+
+          echo "Looking for an existing project..."
+          EXISTING_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ projectsV2(first:100){ nodes { id title number url } } } }' -f login="$OWNER" --jq --arg title "$PROJECT_TITLE" '.data.user.projectsV2.nodes[] | select(.title==$title) | .id' | head -n1 || true)
+
+          if [[ -n "${EXISTING_ID:-}" && "$RECREATE" != "true" ]]; then
+            echo "Project already exists. Nothing to create."
+            gh api graphql -f query='query($login:String!){ user(login:$login){ projectsV2(first:100){ nodes { id title number url } } } }' -f login="$OWNER" --jq --arg title "$PROJECT_TITLE" '.data.user.projectsV2.nodes[] | select(.title==$title) | {title,number,url}'
+            exit 0
+          fi
+
+          echo "Creating project: $PROJECT_TITLE"
+          PROJECT_ID=$(gh api graphql -f query='mutation($owner:ID!,$title:String!){ createProjectV2(input:{ownerId:$owner,title:$title}){ projectV2 { id number url title } } }' -F owner="$OWNER_ID" -f title="$PROJECT_TITLE" --jq '.data.createProjectV2.projectV2.id')
+
+          PROJECT_URL=$(gh api graphql -f query='query($id:ID!){ node(id:$id){ ... on ProjectV2 { url number title } } }' -f id="$PROJECT_ID" --jq '.data.node.url')
+          echo "PROJECT_URL=$PROJECT_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Created: $PROJECT_URL"
+
+          # Create the initial development backlog as real repository issues.
+          declare -a TITLES=(
+            "Define route data model"
+            "Select initial geographic test region"
+            "Obtain and normalize OpenStreetMap routing data"
+            "Evaluate BRouter integration"
+            "Build first bikepacking routing profile"
+            "Implement start and destination routing"
+            "Implement alternative-route generation"
+            "Calculate route statistics"
+            "Build MVP route-results UI"
+            "Implement GPX export"
+            "Test generated routes against real-world riding conditions"
+            "Improve routing weights from real-world failures"
+            "Add authoritative trail and land-management datasets"
+            "Expand export formats"
+            "Evaluate navigation-app integrations"
+          )
+
+          declare -a BODIES=(
+            "Define the canonical route/segment data model, including geometry, surface, access, suitability, provenance, and derived statistics."
+            "Choose a manageable geographic region for initial development and real-world validation."
+            "Build the first OSM ingestion and normalization pipeline needed for bikepacking routing."
+            "Evaluate BRouter as the initial routing-engine foundation rather than building a custom router prematurely."
+            "Create the first routing profile that favors suitable unpaved riding while penalizing inappropriate or illegal segments."
+            "Implement the core point-to-point planning flow from start to destination."
+            "Generate materially different route candidates instead of returning only one path."
+            "Calculate distance, elevation, surface percentages, pavement percentage, travel time, and access warnings."
+            "Build the smallest useful interface for entering a route request and comparing generated candidates."
+            "Export the selected route as GPX so the rider can use their preferred navigation tool."
+            "Ride/test generated routes and document cases where numerical routing quality differs from real-world usefulness."
+            "Use real-world failures to tune routing weights, penalties, and suitability rules."
+            "Add authoritative public datasets where they improve trail, road, access, closure, or land-management intelligence."
+            "Add KML/KMZ, GeoJSON, TCX, FIT, or other useful formats as implementation permits."
+            "Investigate practical ways to hand generated routes to existing navigation/GPS platforms without turning Find-My-Line into a navigation app."
+          )
+
+          echo "Creating development issues and adding them to the project..."
+
+          for i in "${!TITLES[@]}"; do
+            TITLE="${TITLES[$i]}"
+            BODY="${BODIES[$i]}"
+
+            ISSUE_NUMBER=$(GH_TOKEN="$REPO_TOKEN" gh issue list --repo "$REPO" --state all --search "in:title \"$TITLE\"" --json number,title --jq --arg title "$TITLE" '.[] | select(.title==$title) | .number' | head -n1 || true)
+
+            if [[ -z "${ISSUE_NUMBER:-}" ]]; then
+              ISSUE_URL=$(GH_TOKEN="$REPO_TOKEN" gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY")
+              ISSUE_NUMBER="${ISSUE_URL##*/}"
+              echo "Created issue #$ISSUE_NUMBER: $TITLE"
+            else
+              echo "Issue #$ISSUE_NUMBER already exists: $TITLE"
+            fi
+
+            ISSUE_NODE_ID=$(GH_TOKEN="$REPO_TOKEN" gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json id --jq '.id')
+
+            gh api graphql -f query='mutation($project:ID!,$content:ID!){ addProjectV2ItemById(input:{projectId:$project,contentId:$content}){ item { id } } }' -f project="$PROJECT_ID" -f content="$ISSUE_NODE_ID" >/dev/null
+          done
+
+          echo ""
+          echo "=============================================="
+          echo "Find-My-Line Project setup complete"
+          echo "$PROJECT_URL"
+          echo "=============================================="
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "# Find-My-Line Project" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Project created/configured: **[$PROJECT_TITLE]($PROJECT_URL)**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Initial development backlog: 15 issues" >> "$GITHUB_STEP_SUMMARY"
