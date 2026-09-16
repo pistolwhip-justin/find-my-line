@@ -17,7 +17,7 @@ jobs:
   create-project:
     runs-on: ubuntu-latest
     steps:
-      - name: Create project and development issues
+      - name: Create project and phased development backlog
         env:
           GH_TOKEN: ${{ secrets.FIND_MY_LINE_PROJECT_TOKEN }}
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,44 +52,33 @@ jobs:
           echo "PROJECT_URL=$PROJECT_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "Created: $PROJECT_URL"
 
-          # Create the initial development backlog as real repository issues.
+          # The project is deliberately organized as independently testable phases.
+          # Each phase issue is a usable development milestone with its own acceptance test.
           declare -a TITLES=(
-            "Define route data model"
-            "Select initial geographic test region"
-            "Obtain and normalize OpenStreetMap routing data"
-            "Evaluate BRouter integration"
-            "Build first bikepacking routing profile"
-            "Implement start and destination routing"
-            "Implement alternative-route generation"
-            "Calculate route statistics"
-            "Build MVP route-results UI"
-            "Implement GPX export"
-            "Test generated routes against real-world riding conditions"
-            "Improve routing weights from real-world failures"
-            "Add authoritative trail and land-management datasets"
-            "Expand export formats"
-            "Evaluate navigation-app integrations"
+            "[Phase 0] Project foundation"
+            "[Phase 1] First usable route generator"
+            "[Phase 2] Better route intelligence"
+            "[Phase 3] Centralized regional data and offline datasets"
+            "[Phase 4] Offline on-device AI"
+            "[Phase 5] Community route intelligence"
+            "[Phase 6] Expanded exports and interoperability"
+            "[Phase 7] Advanced route discovery"
+            "[Phase 8] Mature ecosystem integrations"
           )
 
           declare -a BODIES=(
-            "Define the canonical route/segment data model, including geometry, surface, access, suitability, provenance, and derived statistics."
-            "Choose a manageable geographic region for initial development and real-world validation."
-            "Build the first OSM ingestion and normalization pipeline needed for bikepacking routing."
-            "Evaluate BRouter as the initial routing-engine foundation rather than building a custom router prematurely."
-            "Create the first routing profile that favors suitable unpaved riding while penalizing inappropriate or illegal segments."
-            "Implement the core point-to-point planning flow from start to destination."
-            "Generate materially different route candidates instead of returning only one path."
-            "Calculate distance, elevation, surface percentages, pavement percentage, travel time, and access warnings."
-            "Build the smallest useful interface for entering a route request and comparing generated candidates."
-            "Export the selected route as GPX so the rider can use their preferred navigation tool."
-            "Ride/test generated routes and document cases where numerical routing quality differs from real-world usefulness."
-            "Use real-world failures to tune routing weights, penalties, and suitability rules."
-            "Add authoritative public datasets where they improve trail, road, access, closure, or land-management intelligence."
-            "Add KML/KMZ, GeoJSON, TCX, FIT, or other useful formats as implementation permits."
-            "Investigate practical ways to hand generated routes to existing navigation/GPS platforms without turning Find-My-Line into a navigation app."
+            "## Goal\nEstablish the repository structure, architecture decisions, test strategy, and first geographic test region.\n\n## Deliverable\nA reproducible development workflow plus a defined region/data-pipeline target.\n\n## Work\n- Define module boundaries.\n- Define the first geographic test region.\n- Establish data/version conventions.\n- Establish representative route test cases and regression testing.\n\n## Acceptance test\nThe project can acquire the selected source data, identify its version, and run the initial data-processing tests."
+            "## Goal\nProve the central route-discovery idea without AI or community complexity.\n\n## Capabilities\n- Start and destination\n- Basic bikepacking preferences\n- One regional dataset\n- Existing routing engine, with BRouter evaluated first\n- Bikepacking routing profile\n- Multiple candidate routes where practical\n- Basic statistics\n- Route display\n- GPX export\n\n## Explicitly excluded\nNavigation, live rerouting, accounts, social features, on-device AI, and direct navigation APIs.\n\n## Acceptance test\nA rider can enter two locations, generate useful bikepacking candidates, compare them, export one as GPX, and open/use it in an existing navigation application."
+            "## Goal\nMake generated lines substantially better than basic bicycle routing.\n\n## Capabilities\n- Better surface classification\n- Better road/trail suitability\n- Access and legality handling\n- Better elevation analysis\n- Traffic/road-class penalties\n- More meaningful alternative generation\n- Route tradeoff explanations\n- More detailed statistics\n\n## Acceptance test\nThe same request produces materially different candidates with understandable tradeoffs, and real-world testing explains why candidates succeed or fail for a stated riding style."
+            "## Goal\nBuild the centralized data foundation required for scalable offline planning.\n\n## Capabilities\n- Source-specific ingestion adapters\n- OSM normalization\n- Licensed government/public datasets\n- Legally usable community/specialized data\n- Geographic matching and deduplication\n- Provenance and confidence\n- Versioned regional datasets\n- Regional packaging\n- Incremental/delta updates\n\n## Acceptance test\nA phone can install a selected region, plan within it without a network connection, and update it incrementally without redownloading the complete region."
+            "## Goal\nAdd conversational route planning without requiring a network connection.\n\n## Capabilities\n- Small specialized local model\n- Natural-language ride requests\n- Natural-language preference changes\n- Structured preference output\n- Candidate-route interpretation\n- Conversational route comparison\n- Offline operation with installed regional data\n\n## Critical boundary\nThe AI translates and evaluates. It does not invent route geometry.\n\n## Benchmark\nMeasure preference extraction accuracy, constraint consistency, ambiguity handling, resistance to hallucinated route facts, candidate comparison accuracy, model size, memory use, latency, and battery impact. Test multiple small models and keep the smallest model that meets the quality threshold.\n\n## Acceptance test\nA rider can describe a ride naturally, the offline model converts it into valid structured preferences, the routing engine generates candidates, and the model accurately explains their tradeoffs."
+            "## Goal\nTurn completed rides into useful feedback for future route generation without turning Find-My-Line into a general social network.\n\n## Capabilities\n- Optional post-ride feedback\n- GPX/FIT import where available\n- Section-level feedback\n- Condition reports\n- Route reviews\n- Privacy controls\n- Anonymous/public contribution options\n- Time-decayed condition information\n- Feedback incorporated into route evaluation\n\n## Acceptance test\nA completed ride can be imported or submitted, sections can be evaluated, and repeated evidence measurably influences future route selection while preserving uncertainty and provenance."
+            "## Goal\nReduce friction between route discovery and the rider's existing navigation tools.\n\n## Capabilities\n- KML/KMZ\n- GeoJSON\n- TCX\n- FIT where practical\n- Android share workflows\n- Direct handoff to compatible navigation applications\n- Direct track import where supported\n\n## Strategic rule\nInteroperability is additive. Portable GPX/FIT-style export remains available even when direct integrations exist.\n\n## Acceptance test\nA rider can send a generated line into supported navigation tools with substantially less manual work while Find-My-Line remains independently useful."
+            "## Goal\nImprove discovery of lines riders would not normally connect manually.\n\n## Potential capabilities\n- Detect promising unconnected corridors\n- Compare against known/public route networks\n- Identify likely new connections\n- Detect likely hike-a-bike sections\n- Better remoteness/scenic estimates\n- Resupply and bailout intelligence\n- Improved condition prediction\n- Route novelty analysis\n- Advanced community-derived suitability signals\n\n## Acceptance test\nReal riders can identify useful route connections not obvious from existing published route collections, and field testing validates a meaningful proportion of discoveries."
+            "## Goal\nMake Find-My-Line a route-discovery layer that works naturally with the broader navigation ecosystem.\n\n## Scope\nEvaluate integrations with navigation apps, GPS computers, route-management services, and other tools where APIs and agreements permit.\n\n## Strategic constraint\nThis phase comes last. Find-My-Line must first establish that its route-discovery engine and community/data intelligence are valuable independently.\n\n## Acceptance test\nSupported integrations reduce friction without making Find-My-Line dependent on any single navigation provider."
           )
 
-          echo "Creating development issues and adding them to the project..."
+          echo "Creating phased development issues and adding them to the project..."
 
           for i in "${!TITLES[@]}"; do
             TITLE="${TITLES[$i]}"
@@ -120,4 +109,5 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Project created/configured: **[$PROJECT_TITLE]($PROJECT_URL)**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Initial development backlog: 15 issues" >> "$GITHUB_STEP_SUMMARY"
+          echo "Phased development backlog: 9 milestone issues (Phase 0 through Phase 8)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Each phase has an explicit deliverable and acceptance test; Phase 1 is the first usable product." >> "$GITHUB_STEP_SUMMARY"
