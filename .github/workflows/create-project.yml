@@ -30,6 +30,7 @@ jobs:
           OWNER="pistolwhip-justin"
           PROJECT_TITLE="Find-My-Line Development"
           RESOURCE_DOC="https://github.com/pistolwhip-justin/find-my-line/blob/main/PHASE_RESOURCES.md"
+          MARKETING_DOC="https://github.com/pistolwhip-justin/find-my-line/blob/main/MARKETING_PLAN.md"
 
           echo "Checking project access..."
           gh api graphql -f query='query { viewer { login } }' >/dev/null
@@ -60,6 +61,7 @@ jobs:
             "[Phase 6] Expanded exports and interoperability"
             "[Phase 7] Advanced route discovery"
             "[Phase 8] Mature ecosystem integrations"
+            "[Marketing] Cross-phase user testing and growth program"
           )
 
           declare -a BODIES=(
@@ -72,6 +74,7 @@ jobs:
             "## Goal\nReduce friction between route discovery and the rider's existing navigation tools.\n\n## Capabilities\n- KML/KMZ\n- GeoJSON\n- TCX\n- FIT where practical\n- Android share workflows\n- Direct handoff to compatible navigation applications\n- Direct track import where supported\n\n## Strategic rule\nInteroperability is additive. Portable GPX/FIT-style export remains available even when direct integrations exist.\n\n## Acceptance test\nA rider can send a generated line into supported navigation tools with substantially less manual work while Find-My-Line remains independently useful."
             "## Goal\nImprove discovery of lines riders would not normally connect manually.\n\n## Potential capabilities\n- Detect promising unconnected corridors\n- Compare against known/public route networks\n- Identify likely new connections\n- Detect likely hike-a-bike sections\n- Better remoteness/scenic estimates\n- Resupply and bailout intelligence\n- Improved condition prediction\n- Route novelty analysis\n- Advanced community-derived suitability signals\n\n## Acceptance test\nReal riders can identify useful route connections not obvious from existing published route collections, and field testing validates a meaningful proportion of discoveries."
             "## Goal\nMake Find-My-Line a route-discovery layer that works naturally with the broader navigation ecosystem.\n\n## Scope\nEvaluate integrations with navigation apps, GPS computers, route-management services, and other tools where APIs and agreements permit.\n\n## Strategic constraint\nThis phase comes last. Find-My-Line must first establish that its route-discovery engine and community/data intelligence are valuable independently.\n\n## Acceptance test\nSupported integrations reduce friction without making Find-My-Line dependent on any single navigation provider."
+            "## Goal\nRun user acquisition and testing as a continuous product-development function.\n\n## Master document\n$MARKETING_DOC\n\n## Operating principle\nRecruit the right riders in controlled waves. User growth is intended to increase route validation, usability feedback, real-world evidence, content and confidence—not simply downloads.\n\n## Phase targets\n- Phase 0: 0–10 design partners\n- Phase 1: 10–25 active testers\n- Phase 2: 25–75 active testers; approximately 35–100 cumulative\n- Phase 3: 50–150 active testers; approximately 85–250 cumulative\n- Phase 4: 100–300 active testers; approximately 185–550 cumulative\n- Phase 5: 250–750 active testers; approximately 435–1,300 cumulative\n- Phase 6: 500–1,500 active testers; approximately 935–2,800 cumulative\n- Phase 7: 1,000–3,000 active testers; approximately 1,935–5,800 cumulative\n- Phase 8: 3,000–10,000+ active testers; approximately 4,935–15,800+ cumulative\n\n## Acquisition channels\n- Personal outreach and founding rider/design partners\n- Relevant bikepacking, gravel and cycling communities\n- Regional rider groups and clubs\n- Referrals from existing testers\n- Validated ride reports and route-discovery case studies\n- Search-friendly website content\n- Regional ambassadors beginning in Phase 5\n- Partnerships and ecosystem outreach in later phases\n\n## Core measurements\nTrack active testers, activation, routes generated, routes selected/exported, routes actually ridden, feedback per tester, route problems, repeat use, referrals, acquisition source, cost per activated tester, time-to-feedback, and verified route examples.\n\n## Growth gate\nDo not increase recruitment faster than the project can process feedback, fix route/data problems, support users, and protect user privacy. Increase recruitment when the current cohort is generating actionable evidence and onboarding/support are repeatable.\n\n## Acceptance test\nEvery active development phase has an appropriate tester cohort, a defined acquisition method, measurable feedback goals, and a decision about whether the next recruitment wave should grow, hold, or shrink."
           )
 
           declare -a RESOURCES=(
@@ -84,6 +87,7 @@ jobs:
             "**Resources / budget:** GPX/KML/KMZ/GeoJSON/TCX/FIT formats ($0), Android share/intents ($0), official vendor APIs/SDKs where available. **Phase target: $0–$25/month, excluding vendor-specific agreements.** Detailed interoperability resources: $RESOURCE_DOC"
             "**Resources / budget:** mature Phase 3 regional data + Phase 5 ride history, public GIS, additional processing compute. **Phase target: $0–$100/month initially; pay only when measured workload requires it.** Detailed requirements: $RESOURCE_DOC"
             "**Resources / budget:** official vendor APIs/SDKs, partnership/contact channels, production backend, monitoring. **Phase target: $0–$150/month initially, excluding legal/business/vendor agreements.** Detailed requirements: $RESOURCE_DOC"
+            "**Resources / budget:** Marketing is intentionally organic-first through the early phases. Phase 0–2 target paid acquisition: $0. Phase 3–5: $0–$100/month only for measured experiments. Phase 6–7: $0–$250/month initially if justified. Phase 8: scale paid spend only after retention/referral evidence supports it. Detailed targets, channels, cohort sizes and KPIs: $MARKETING_DOC"
           )
 
           echo "Creating phased development issues and adding them to the project..."
@@ -111,6 +115,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Project: **[$PROJECT_TITLE]($PROJECT_URL)**" >> "$GITHUB_STEP_SUMMARY"
           echo "Resource plan: **[$RESOURCE_DOC]($RESOURCE_DOC)**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Marketing/user-testing plan: **[$MARKETING_DOC]($MARKETING_DOC)**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Phased development backlog: 9 milestone issues (Phase 0 through Phase 8)." >> "$GITHUB_STEP_SUMMARY"
-          echo "Each phase includes a deliverable, acceptance test, resource-readiness summary and planning budget." >> "$GITHUB_STEP_SUMMARY"
+          echo "Phased development backlog: 9 milestone issues (Phase 0 through Phase 8) plus one cross-phase marketing/user-testing issue." >> "$GITHUB_STEP_SUMMARY"
+          echo "Marketing is treated as a product-development input: cohort size, acquisition channel, feedback goals and growth gates are planned alongside engineering." >> "$GITHUB_STEP_SUMMARY"
