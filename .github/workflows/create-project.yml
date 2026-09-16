@@ -29,14 +29,13 @@ jobs:
 
           OWNER="pistolwhip-justin"
           PROJECT_TITLE="Find-My-Line Development"
+          RESOURCE_DOC="https://github.com/pistolwhip-justin/find-my-line/blob/main/PHASE_RESOURCES.md"
 
           echo "Checking project access..."
           gh api graphql -f query='query { viewer { login } }' >/dev/null
 
-          echo "Getting owner node ID..."
           OWNER_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ id } }' -f login="$OWNER" --jq '.data.user.id')
 
-          echo "Looking for an existing project..."
           EXISTING_ID=$(gh api graphql -f query='query($login:String!){ user(login:$login){ projectsV2(first:100){ nodes { id title number url } } } }' -f login="$OWNER" --jq --arg title "$PROJECT_TITLE" '.data.user.projectsV2.nodes[] | select(.title==$title) | .id' | head -n1 || true)
 
           if [[ -n "${EXISTING_ID:-}" && "$RECREATE" != "true" ]]; then
@@ -50,10 +49,7 @@ jobs:
 
           PROJECT_URL=$(gh api graphql -f query='query($id:ID!){ node(id:$id){ ... on ProjectV2 { url number title } } }' -f id="$PROJECT_ID" --jq '.data.node.url')
           echo "PROJECT_URL=$PROJECT_URL" >> "$GITHUB_STEP_SUMMARY"
-          echo "Created: $PROJECT_URL"
 
-          # The project is deliberately organized as independently testable phases.
-          # Each phase issue is a usable development milestone with its own acceptance test.
           declare -a TITLES=(
             "[Phase 0] Project foundation"
             "[Phase 1] First usable route generator"
@@ -67,8 +63,8 @@ jobs:
           )
 
           declare -a BODIES=(
-            "## Goal\nEstablish the repository structure, architecture decisions, test strategy, and first geographic test region.\n\n## Deliverable\nA reproducible development workflow plus a defined region/data-pipeline target.\n\n## Work\n- Define module boundaries.\n- Define the first geographic test region.\n- Establish data/version conventions.\n- Establish representative route test cases and regression testing.\n\n## Acceptance test\nThe project can acquire the selected source data, identify its version, and run the initial data-processing tests."
-            "## Goal\nProve the central route-discovery idea without AI or community complexity.\n\n## Capabilities\n- Start and destination\n- Basic bikepacking preferences\n- One regional dataset\n- Existing routing engine, with BRouter evaluated first\n- Bikepacking routing profile\n- Multiple candidate routes where practical\n- Basic statistics\n- Route display\n- GPX export\n\n## Explicitly excluded\nNavigation, live rerouting, accounts, social features, on-device AI, and direct navigation APIs.\n\n## Acceptance test\nA rider can enter two locations, generate useful bikepacking candidates, compare them, export one as GPX, and open/use it in an existing navigation application."
+            "## Goal\nEstablish the repository structure, architecture decisions, test strategy, and first geographic test region.\n\n## Deliverable\nA reproducible development workflow plus a defined region/data-pipeline target.\n\n## Work\n- Android project foundation\n- Module boundaries\n- Test architecture\n- First geographic test region\n- Source/version conventions\n- CI/build/test workflow\n\n## Acceptance test\nThe project can acquire the selected source data, identify its version, and run initial build/data-processing tests."
+            "## Goal\nProve the central route-discovery idea without AI or community complexity.\n\n## Capabilities\n- Start and destination\n- Basic bikepacking preferences\n- One regional dataset\n- Existing routing engine, with BRouter evaluated first\n- Bikepacking routing profile\n- Multiple candidate routes where practical\n- Basic statistics\n- Offline route/map display\n- GPX export\n\n## Explicitly excluded\nTurn-by-turn navigation, live rerouting, user accounts, social features, on-device AI, and direct navigation APIs.\n\n## Acceptance test\nA rider can enter two locations, generate useful bikepacking candidates, compare them, export one as GPX, and open/use it in an existing navigation application."
             "## Goal\nMake generated lines substantially better than basic bicycle routing.\n\n## Capabilities\n- Better surface classification\n- Better road/trail suitability\n- Access and legality handling\n- Better elevation analysis\n- Traffic/road-class penalties\n- More meaningful alternative generation\n- Route tradeoff explanations\n- More detailed statistics\n\n## Acceptance test\nThe same request produces materially different candidates with understandable tradeoffs, and real-world testing explains why candidates succeed or fail for a stated riding style."
             "## Goal\nBuild the centralized data foundation required for scalable offline planning.\n\n## Capabilities\n- Source-specific ingestion adapters\n- OSM normalization\n- Licensed government/public datasets\n- Legally usable community/specialized data\n- Geographic matching and deduplication\n- Provenance and confidence\n- Versioned regional datasets\n- Regional packaging\n- Incremental/delta updates\n\n## Acceptance test\nA phone can install a selected region, plan within it without a network connection, and update it incrementally without redownloading the complete region."
             "## Goal\nAdd conversational route planning without requiring a network connection.\n\n## Capabilities\n- Small specialized local model\n- Natural-language ride requests\n- Natural-language preference changes\n- Structured preference output\n- Candidate-route interpretation\n- Conversational route comparison\n- Offline operation with installed regional data\n\n## Critical boundary\nThe AI translates and evaluates. It does not invent route geometry.\n\n## Benchmark\nMeasure preference extraction accuracy, constraint consistency, ambiguity handling, resistance to hallucinated route facts, candidate comparison accuracy, model size, memory use, latency, and battery impact. Test multiple small models and keep the smallest model that meets the quality threshold.\n\n## Acceptance test\nA rider can describe a ride naturally, the offline model converts it into valid structured preferences, the routing engine generates candidates, and the model accurately explains their tradeoffs."
@@ -78,11 +74,23 @@ jobs:
             "## Goal\nMake Find-My-Line a route-discovery layer that works naturally with the broader navigation ecosystem.\n\n## Scope\nEvaluate integrations with navigation apps, GPS computers, route-management services, and other tools where APIs and agreements permit.\n\n## Strategic constraint\nThis phase comes last. Find-My-Line must first establish that its route-discovery engine and community/data intelligence are valuable independently.\n\n## Acceptance test\nSupported integrations reduce friction without making Find-My-Line dependent on any single navigation provider."
           )
 
+          declare -a RESOURCES=(
+            "**Resources / budget:** GitHub public repo + Actions ($0), Android Studio/SDK/NDK ($0), Kotlin/Gradle ($0), one representative Android test device. **Phase target: $0.** Detailed checklist: $RESOURCE_DOC"
+            "**Resources / budget:** Geofabrik/OSM regional data ($0), BRouter ($0, MIT), Mapsforge or MapLibre Native ($0 library cost), GPX library ($0). **Phase target: $0 baseline; roughly $0–$25 optional testing/storage.** Detailed sources/costs: $RESOURCE_DOC"
+            "**Resources / budget:** OSM/Geofabrik ($0), BRouter profiles ($0), USGS 3DEP ($0 for public datasets), USFS/BLM/NPS/state GIS where permitted (generally $0), local processing. **Phase target: $0–$50/month.** Detailed sources/costs: $RESOURCE_DOC"
+            "**Resources / budget:** Geofabrik daily extracts ($0), public GIS ($0 where available), GitHub Actions ($0 for standard runners in public repos), R2/B2 object storage ($0 initially). **Phase target: $0–$20/month initially.** Detailed storage pricing: $RESOURCE_DOC"
+            "**Resources / budget:** llama.cpp ($0), candidate small local models such as Gemma 3n ($0 where license/terms permit), project benchmark corpus ($0), representative Android devices. **Phase target: $0 production cost; $0–$50/month optional benchmarking compute.** Detailed model/runtime sources: $RESOURCE_DOC"
+            "**Resources / budget:** GPX/FIT processing ($0), Supabase Free ($0 initially), R2/B2 ($0 initially), privacy/consent architecture. Supabase Pro currently starts at $25/month if needed. **Phase target: $0–$25/month early testing.** Detailed backend/storage costs: $RESOURCE_DOC"
+            "**Resources / budget:** GPX/KML/KMZ/GeoJSON/TCX/FIT formats ($0), Android share/intents ($0), official vendor APIs/SDKs where available. **Phase target: $0–$25/month, excluding vendor-specific agreements.** Detailed interoperability resources: $RESOURCE_DOC"
+            "**Resources / budget:** mature Phase 3 regional data + Phase 5 ride history, public GIS, additional processing compute. **Phase target: $0–$100/month initially; pay only when measured workload requires it.** Detailed requirements: $RESOURCE_DOC"
+            "**Resources / budget:** official vendor APIs/SDKs, partnership/contact channels, production backend, monitoring. **Phase target: $0–$150/month initially, excluding legal/business/vendor agreements.** Detailed requirements: $RESOURCE_DOC"
+          )
+
           echo "Creating phased development issues and adding them to the project..."
 
           for i in "${!TITLES[@]}"; do
             TITLE="${TITLES[$i]}"
-            BODY="${BODIES[$i]}"
+            BODY="${BODIES[$i]}\n\n## Resource readiness\n${RESOURCES[$i]}\n\n**Rule:** No paid dependency is required merely for convenience. Before starting this phase, confirm the required resources are available, licenses are checked, secrets are secured, and a free/open-source fallback exists for every paid dependency."
 
             ISSUE_NUMBER=$(GH_TOKEN="$REPO_TOKEN" gh issue list --repo "$REPO" --state all --search "in:title \"$TITLE\"" --json number,title --jq --arg title "$TITLE" '.[] | select(.title==$title) | .number' | head -n1 || true)
 
@@ -95,19 +103,14 @@ jobs:
             fi
 
             ISSUE_NODE_ID=$(GH_TOKEN="$REPO_TOKEN" gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json id --jq '.id')
-
             gh api graphql -f query='mutation($project:ID!,$content:ID!){ addProjectV2ItemById(input:{projectId:$project,contentId:$content}){ item { id } } }' -f project="$PROJECT_ID" -f content="$ISSUE_NODE_ID" >/dev/null
           done
 
-          echo ""
-          echo "=============================================="
-          echo "Find-My-Line Project setup complete"
-          echo "$PROJECT_URL"
-          echo "=============================================="
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "# Find-My-Line Project" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Project created/configured: **[$PROJECT_TITLE]($PROJECT_URL)**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Project: **[$PROJECT_TITLE]($PROJECT_URL)**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Resource plan: **[$RESOURCE_DOC]($RESOURCE_DOC)**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Phased development backlog: 9 milestone issues (Phase 0 through Phase 8)" >> "$GITHUB_STEP_SUMMARY"
-          echo "Each phase has an explicit deliverable and acceptance test; Phase 1 is the first usable product." >> "$GITHUB_STEP_SUMMARY"
+          echo "Phased development backlog: 9 milestone issues (Phase 0 through Phase 8)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Each phase includes a deliverable, acceptance test, resource-readiness summary and planning budget." >> "$GITHUB_STEP_SUMMARY"
