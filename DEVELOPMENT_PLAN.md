@@ -1,18 +1,18 @@
-# Find-My-Line — Development Plan
+# Find-My-Line — Phased Development Plan
 
 ## 1. Project Definition
 
-**Find-My-Line is a bikepacking route planner.**
+**Find-My-Line is a bikepacking route planner and route generator.**
 
-Its purpose is simple:
+Its job is simple:
 
-> Given a starting point and destination, find rideable routes that connect them while favoring suitable unpaved riding and minimizing unnecessary pavement.
+> Given a start, destination, and riding intent, find practical bikepacking lines that connect them while favoring suitable unpaved riding and avoiding unnecessary pavement, inappropriate terrain, and known access problems.
 
-Find-My-Line is **not intended to replace navigation apps, GPS computers, mapping apps, or established route libraries.** It is a route-generation/planning tool that complements them.
+Find-My-Line is **not a navigation app** and is not intended to replace established navigation tools. The intended workflow is:
 
-The user should be able to generate a route, inspect it, and export it to the navigation system they already prefer.
+**Find-My-Line finds the line → the rider's preferred navigation tool follows the line.**
 
-The project should focus its development effort on one problem: **finding useful bikepacking lines that ordinary routing tools may not produce.**
+The project should concentrate its engineering effort on discovering and evaluating bikepacking routes that conventional routing may not produce.
 
 ---
 
@@ -20,203 +20,146 @@ The project should focus its development effort on one problem: **finding useful
 
 ### Complement, don't compete
 
-Find-My-Line should work alongside existing tools rather than attempting to become an all-in-one navigation platform.
+The core workflow is:
 
-Examples of the intended workflow:
+1. Rider describes where they want to go and what kind of ride they want.
+2. Find-My-Line translates that intent into routing preferences.
+3. A routing engine generates physically connected candidate routes.
+4. Find-My-Line evaluates those candidates for bikepacking suitability.
+5. The rider compares the alternatives.
+6. The selected line is exported to the rider's preferred navigation tool.
+7. The completed ride can optionally provide feedback that improves future route generation.
 
-1. Open Find-My-Line.
-2. Select a start and destination.
-3. Choose riding preferences.
-4. Generate several route possibilities.
-5. Inspect the routes and their characteristics.
-6. Export the selected route.
-7. Open/use that route in the rider's preferred navigation app or GPS device.
+### Route export is fundamental
 
-Find-My-Line does not need to provide turn-by-turn navigation to deliver its core value.
+GPX is the minimum interoperability layer. Additional formats can be added later: KML/KMZ, GeoJSON, TCX, and FIT where practical.
 
-### First-class route export
-
-Export is a core feature, not an afterthought.
-
-Initial target formats:
-
-- GPX
-- KML/KMZ
-- GeoJSON
-- TCX
-- FIT where practical
-
-The exact initial export set can be reduced for the first MVP if implementation complexity becomes excessive. GPX should be treated as the minimum required export format.
+Direct integrations with navigation applications are a later convenience layer, not a dependency.
 
 ---
 
-## 3. Core Problem
-
-Normal point-to-point routing generally optimizes for factors such as distance, travel time, road hierarchy, or conventional bicycle suitability.
-
-Find-My-Line should instead optimize for **bikepacking suitability**.
-
-The planner should be able to favor:
-
-- Gravel roads
-- Forest roads
-- Dirt roads
-- Doubletrack
-- Suitable singletrack
-- Bike-legal trails
-- Low-traffic roads used as connectors
-- Existing bicycle routes when useful
-
-And penalize or avoid, where practical:
-
-- Major paved roads
-- High-traffic roads
-- Unsuitable trails
-- Hiking-only paths
-- Motorized-only routes
-- Illegal bicycle access
-- Known closed routes
-- Excessive pavement used merely as a shortcut
-
-The objective is not simply "maximum trail."
-
-A route made almost entirely of technically difficult or inappropriate singletrack may be a worse bikepacking route than one using excellent gravel and forest roads. The routing model therefore needs to evaluate **surface + access + suitability + connectivity**, not just whether something is labeled a trail.
-
----
-
-## 4. What Makes Find-My-Line Different
-
-The differentiating feature is the **route-generation logic**, not ownership of a map or navigation ecosystem.
-
-The planner should combine available geographic and trail information and search for connections that a rider might not otherwise discover.
-
-The intended result is a route that can be described with concrete statistics such as:
-
-- Total distance
-- Elevation gain/loss
-- Percentage paved
-- Percentage unpaved
-- Gravel percentage
-- Dirt/forest-road percentage
-- Singletrack percentage
-- Estimated riding time
-- Significant climbing
-- Steep sections
-- Technical sections
-- Access/legality warnings
-- Known closures or seasonal restrictions
-- Resupply/POI information where available
-
-Do not claim that a generated route is literally "the first" or "never ridden" unless that can actually be established. Prefer language such as **generated**, **unpublished**, **newly connected**, or **not found in the project's known route sources** when appropriate.
-
----
-
-## 5. Route Generation Model
-
-The planner should use a weighted multi-objective routing model rather than a single hard-coded preference.
-
-Conceptually:
+## 3. Core Architecture
 
 ```text
-route cost =
-    distance cost
-  + pavement cost
-  + traffic/road-class cost
-  + unsuitable-surface cost
-  + access-risk cost
-  + elevation cost
-  + technical-difficulty cost
-  + other user-selected penalties
+Rider intent
+     |
+     v
+Local Find-My-Line AI
+     |
+     | structured routing preferences
+     v
+Routing engine + regional route graph
+     |
+     | physically connected candidate routes
+     v
+Find-My-Line route evaluator
+     |
+     | comparisons / explanations
+     v
+Rider chooses a line
+     |
+     v
+GPX/FIT/etc. export
+     |
+     v
+Existing navigation app / GPS device
 ```
 
-The relative weights should be adjustable.
+### Critical architectural rule
 
-The user should eventually be able to express preferences such as:
+**The AI must not invent route geometry.**
 
-- More unpaved
-- Less pavement
-- More gravel
-- More trail
-- Less technical
-- Less climbing
-- More remote
-- Faster/easier
-- More adventurous
+The routing engine determines what paths physically connect. The AI interprets human language, converts it to structured preferences, evaluates returned candidates, and explains tradeoffs.
 
-These are routing preferences, not separate products.
+This separation is important for reliability and makes a small on-device model practical.
 
 ---
 
-## 6. Multiple Route Results
+## 4. On-Device AI Strategy
 
-The planner should generate **multiple materially different route candidates**, rather than returning only one route.
+Find-My-Line should target a **small specialized local AI model**, not a general-purpose assistant.
 
-Examples:
+The model's narrowly defined jobs are:
 
-- Low-pavement route
-- Gravel-focused route
-- Trail-focused route
-- Lower-climbing route
-- More direct route
-- More remote route
-- Balanced route
+- Understand rider requests.
+- Convert natural language into structured routing preferences.
+- Interpret route statistics and known route attributes.
+- Compare candidate routes.
+- Explain tradeoffs.
+- Handle revisions such as "less pavement," "less climbing," or "more remote."
 
-The actual names and number of route variants should be determined during implementation and testing.
+The model does **not** need to contain the road network or know the world's geography. Geographic knowledge belongs in the regional offline dataset and routing engine.
 
-The important requirement is that alternatives should be meaningfully different, not minor variations of the same route.
+The app should ultimately perform the core planning conversation without an internet connection when the required regional data and model are installed.
 
----
+Model size must be tested rather than assumed. The initial target is roughly **0.5–2 GB for a quantized model**, with a goal of going smaller if a specialized model meets the quality requirement.
 
-## 7. Data Strategy
+The model should produce constrained structured output rather than unrestricted routing instructions. Conceptually:
 
-Find-My-Line should not assume that one map database contains everything needed for good bikepacking routing.
+```json
+{
+  "surface_preference": "unpaved",
+  "pavement_tolerance": 0.15,
+  "traffic_tolerance": 0.10,
+  "technicality": 0.35,
+  "remoteness": 0.85,
+  "climbing_tolerance": 0.70,
+  "scenic_preference": 0.80
+}
+```
 
-Potential data sources include:
-
-### OpenStreetMap
-
-Primary general-purpose geographic/routing data source.
-
-Useful information includes:
-
-- Roads
-- Trails
-- Surface
-- Access
-- Bicycle restrictions
-- Route relations
-- Track classifications
-- Trail difficulty tags
-- Points of interest
-
-### Government/public datasets
-
-Where available, incorporate authoritative datasets such as:
-
-- USGS
-- US Forest Service
-- Bureau of Land Management
-- National Park Service
-- State land-management agencies
-- County/local GIS
-
-These can provide useful information about trails, roads, land ownership, access, closures, and other geographic features.
-
-### Community/specialized datasets
-
-Potential future sources include community trail databases and route collections.
-
-Licensing and redistribution rights must be checked for every external source before incorporating its data into the project.
+The exact schema will be developed and benchmarked during the AI phase.
 
 ---
 
-## 8. Data Provenance and Conflict Handling
+## 5. Regional Offline Data Strategy
 
-Different sources will disagree.
+Find-My-Line should centralize data collection and normalization rather than forcing every phone to download raw global datasets.
 
-The project should not simply merge everything together and assume every record is equally trustworthy.
+```text
+Central data pipeline
+        |
+        +-- Region A
+        +-- Region B
+        +-- Region C
+        +-- ...
+                |
+                v
+        Phone downloads selected regions
+```
 
-Each important piece of route information should retain provenance where practical:
+Phones should download only the regions the rider needs and retain them for offline planning.
+
+Routine updates should be **incremental/delta updates**, not full redownloads. Regional datasets should be versioned so route generation can be reproduced against a known data version.
+
+---
+
+## 6. Data Sources
+
+Potential sources include:
+
+- OpenStreetMap for general geographic/routing data.
+- USGS, US Forest Service, BLM, NPS, state agencies, DOTs, and local GIS where licensing permits.
+- Public APIs, downloadable datasets, and legally usable community/specialized sources.
+
+Do not bypass access controls, CAPTCHAs, rate limits, authentication, or terms of service. Every source adapter must respect the source's legal and technical conditions.
+
+---
+
+## 7. Data Normalization, Provenance, and Confidence
+
+The ingestion pipeline should:
+
+1. Collect source data.
+2. Normalize schemas.
+3. Geographically match corresponding features.
+4. Deduplicate where appropriate.
+5. Resolve conflicts using explicit rules.
+6. Preserve source provenance.
+7. Assign confidence and verification dates.
+8. Produce a canonical regional routing dataset.
+
+Important attributes should retain, where practical:
 
 - Source
 - Source type
@@ -224,22 +167,41 @@ Each important piece of route information should retain provenance where practic
 - Date verified
 - Confidence
 - Official/unofficial status
+- Seasonal validity
 
-When sources conflict, the system should resolve individual attributes according to an explicit hierarchy.
+The system should not manufacture precise facts from weak signals.
 
-For example:
+---
 
-- Official land-manager access information should take precedence over community assumptions about legal access.
-- Elevation can be calculated consistently from a selected elevation dataset.
-- OSM can provide detailed road/trail geometry where authoritative trail datasets are incomplete.
+## 8. Route Intelligence Signals
 
-The underlying source observations should remain distinguishable even when the routing system creates a canonical representation.
+Useful characteristics may be derived from combinations of:
+
+- OSM road/trail classification
+- Surface
+- Road class
+- Speed limit
+- Lane count
+- Traffic counts
+- Population density
+- Road ownership
+- Protected-land status
+- Terrain
+- Forest cover
+- Water features
+- Scenic designations
+- Trail difficulty
+- Trail usage where legally available
+- Community ride feedback
+- Recent condition reports
+
+Derived attributes should retain confidence and provenance. Examples include estimated remoteness, traffic exposure, scenic value, bikepacking suitability, technical difficulty, and likely hike-a-bike. These are decision-support signals, not guaranteed truths.
 
 ---
 
 ## 9. Legal Access Is a Routing Attribute
 
-A mapped path is not automatically a legally rideable path.
+A mapped path is not automatically legally rideable.
 
 The routing system must distinguish between:
 
@@ -249,284 +211,315 @@ The routing system must distinguish between:
 4. Seasonal accessibility
 5. Suitability for the selected bike/riding style
 
-Where access information is unknown, the system should not silently treat the segment as confirmed legal.
-
-Warnings should be presented when the planner cannot establish appropriate access.
+Unknown access must not silently become confirmed legal access. Official access information should generally outrank community assumptions when the two conflict.
 
 ---
 
 ## 10. Routing Engine
 
-Do not build a routing engine from scratch unless there is a demonstrated need.
+Do not build a routing engine from scratch unless testing demonstrates that existing technology cannot meet the requirements.
 
-Existing open-source routing technology should be evaluated first.
+**BRouter** should be evaluated as an initial routing-engine candidate because its open-source OSM-based cycling routing and configurable profiles are suited to experimentation with surface, road class, elevation, and other costs.
 
-**BRouter** is an especially relevant candidate because it is an open-source OSM-based cycling router with configurable profiles, elevation awareness, alternative routing, and GPX/KML/GeoJSON output capabilities. Its profile system can be adapted to change how surfaces, road classes, elevation, and other characteristics affect routing.
-
-The project should evaluate BRouter as a routing-engine foundation rather than assuming a custom graph engine is necessary from day one.
-
-Potential architecture:
+The routing engine must remain replaceable.
 
 ```text
-Find-My-Line
-     |
-     +-- Data collection
-     |
-     +-- Data normalization
-     |
-     +-- Access / suitability intelligence
-     |
-     +-- Bikepacking routing profile
-     |
-     +-- Alternative-route generation
-     |
-     +-- Route analysis
-     |
-     +-- Export
-     |
-     +-- Existing navigation app / GPS device
+Regional graph
+    |
+    +-- nodes = junctions / endpoints
+    +-- edges = connected road/trail segments
+    +-- attributes = surface, access, elevation, road class, etc.
+    |
+    v
+Routing algorithm
+    |
+    v
+Candidate lines
+    |
+    v
+Find-My-Line evaluator
 ```
 
-The routing engine should remain replaceable if a better implementation is discovered later.
+The routing engine solves physical connectivity. Find-My-Line controls and evaluates the bikepacking strategy.
 
 ---
 
-## 11. Route Analysis
+## 11. Multiple Candidate Routes
 
-Every generated route should be analyzed after routing.
+The planner should generate **materially different** candidates rather than cosmetic variations.
 
-At minimum:
+Possible strategy profiles include:
+
+- Balanced
+- Low pavement
+- Gravel-focused
+- Trail-focused
+- Lower climbing
+- More direct
+- More remote
+- More adventurous
+
+The final number and names should be determined through testing. Candidates should expose concrete tradeoffs instead of hiding everything behind one opaque score.
+
+---
+
+## 12. Route Analysis
+
+Initial statistics:
 
 - Distance
-- Elevation gain
-- Elevation loss
-- Surface breakdown
+- Elevation gain/loss
 - Pavement percentage
 - Unpaved percentage
-- Trail percentage
+- Gravel percentage where reliable
+- Dirt/forest-road percentage where reliable
+- Trail/singletrack percentage where reliable
 - Major-road exposure
 - Estimated travel time
 - Access warnings
+- Known closures/restrictions
 
-Future analysis may include:
-
-- Water availability
-- Resupply opportunities
-- Camping
-- Bike shops
-- Food
-- Cell coverage
-- Bailout points
-- Town access
-- Seasonal hazards
-
-These should be added only when they materially improve route planning.
+Later additions may include water, resupply, food, camping, bike shops, cell coverage, bailout points, town access, and seasonal hazards when they materially improve planning.
 
 ---
 
-## 12. User Interface — MVP
+## 13. Community Feedback and the Intelligence Loop
 
-The MVP should stay deliberately small.
+Community participation should improve route planning, not turn Find-My-Line into a general social network.
 
-### Start/destination
+After a ride, riders may optionally provide structured feedback about route sections and the overall line, including enjoyment, surface quality, technical difficulty, hike-a-bike, traffic, access problems, closures, mud/flooding/washouts, and overall suitability.
 
-The user selects:
+Riders must control whether route data is private, anonymous, or public. Sensitive start/end locations should be protected by default when publishing ride data.
 
-- Start
-- Destination
+Repeated poor feedback should cause a segment or route characteristic to be **downweighted**, not silently deleted, because conditions change and disagreement is useful information.
 
-Optional later support:
+Popularity must not be treated as quality. Keep separate signals for enjoyment, suitability, usage, confidence, novelty, remoteness, and recent conditions.
 
-- Waypoints
-- Avoid areas
-- Required areas
-
-### Riding preferences
-
-The user controls the characteristics they care about.
-
-Initial controls should be simple enough to understand without knowing routing-engine terminology.
-
-Potential controls:
-
-- Pavement ↔ unpaved
-- Gravel ↔ trail
-- Easy ↔ technical
-- Low climbing ↔ climbing accepted
-- Direct ↔ exploratory
-
-### Results
-
-Display multiple generated routes with clear statistics.
-
-The user can select a route and inspect it before export.
-
-### Export
-
-Provide a straightforward export/share action that lets the rider send the route to another application or save the file.
+A future community feature may recognize the first documented rider of a genuinely new section or connection and allow that rider to name it, subject to verification and project rules.
 
 ---
 
-## 13. Navigation Is Intentionally Out of Scope
+# 14. Phased Development Strategy
 
-The following are **not part of the core Find-My-Line product**:
+Every phase must produce something **testable and usable** before the next phase begins.
 
-- Turn-by-turn navigation
-- Voice navigation
-- Live rerouting
-- Traffic navigation
-- Full GPS computer replacement
-- Continuous background navigation
-- Building a competing navigation app
-- Maintaining a proprietary global basemap
-- Recreating features already handled well by established navigation apps
+A phase is complete only when its acceptance tests pass. Later phases add capability; they do not require the entire future product to be finished before anything is usable.
 
-A future integration may make sending a generated route directly to another service easier, but Find-My-Line should remain useful without owning the navigation experience.
+## Phase 0 — Project foundation
+
+**Goal:** Establish repository structure, architecture decisions, test strategy, and the first geographic test region.
+
+**Deliverable:** Reproducible development workflow plus a defined region/data pipeline target.
+
+**Acceptance test:** The project can acquire the selected source data, identify its version, and run initial data-processing tests.
+
+## Phase 1 — First usable route generator
+
+**Goal:** Prove the central route-discovery idea without AI or community complexity.
+
+**Capabilities:**
+- Start and destination
+- Basic bikepacking preferences
+- One regional dataset
+- Existing routing engine
+- Bikepacking routing profile
+- Multiple candidate routes where practical
+- Basic statistics
+- Route display
+- GPX export
+
+**Explicitly excluded:** turn-by-turn navigation, live rerouting, user accounts, social features, on-device AI, and direct navigation APIs.
+
+**Acceptance test:** A rider can enter two locations, generate useful bikepacking candidates, compare them, export one as GPX, and open/use it in an existing navigation application.
+
+**Phase 1 is the first genuinely usable product.**
+
+## Phase 2 — Better route intelligence
+
+**Goal:** Make generated lines substantially better than basic bicycle routing.
+
+**Capabilities:**
+- Better surface classification
+- Better road/trail suitability
+- Access and legality handling
+- Better elevation analysis
+- Traffic/road-class penalties
+- More meaningful alternative generation
+- Route tradeoff explanations
+- More detailed statistics
+
+**Acceptance test:** The same request produces materially different candidates with understandable tradeoffs, and real-world testing explains why candidates succeed or fail for a stated riding style.
+
+## Phase 3 — Centralized regional data system
+
+**Goal:** Build the data foundation for scalable offline planning.
+
+**Capabilities:**
+- Source-specific ingestion adapters
+- OSM normalization
+- Licensed government/public datasets
+- Legally usable community/specialized data
+- Geographic matching and deduplication
+- Provenance and confidence
+- Versioned regional datasets
+- Regional packaging
+- Incremental/delta updates
+
+**Acceptance test:** A phone can install a selected region, plan within it without a network connection, and update it incrementally without redownloading the complete region.
+
+## Phase 4 — Offline on-device AI
+
+**Goal:** Add conversational route planning without requiring a network connection.
+
+**Capabilities:**
+- Small specialized local model
+- Natural-language ride requests
+- Natural-language preference changes
+- Structured preference output
+- Candidate-route interpretation
+- Conversational route comparison
+- Offline operation with installed regional data
+
+**AI boundary:** The AI translates and evaluates. It does not invent route geometry.
+
+**Model benchmark:** Measure preference extraction accuracy, constraint consistency, ambiguity handling, resistance to hallucinated route facts, candidate comparison accuracy, model size, memory use, latency, and battery impact. Test multiple small models and keep the smallest model that meets the quality threshold.
+
+**Acceptance test:** A rider can say, for example, "Get me there with as little pavement as reasonably possible. I don't mind climbing, but I don't want busy roads." The offline model converts that into valid structured preferences, the routing engine generates candidates, and the model accurately explains their tradeoffs.
+
+## Phase 5 — Community route intelligence
+
+**Goal:** Turn completed rides into useful feedback for future route generation.
+
+**Capabilities:**
+- Optional post-ride feedback
+- GPX/FIT import where available
+- Section-level feedback
+- Condition reports
+- Route reviews
+- Privacy controls
+- Anonymous/public contribution options
+- Time-decayed condition information
+- Feedback incorporated into route evaluation
+
+**Acceptance test:** A completed ride can be imported or submitted, sections can be evaluated, and repeated evidence measurably influences future route selection while preserving uncertainty and provenance.
+
+## Phase 6 — Expanded exports and interoperability
+
+**Goal:** Reduce friction between route discovery and existing navigation tools.
+
+**Capabilities:**
+- KML/KMZ
+- GeoJSON
+- TCX
+- FIT where practical
+- Android share workflows
+- Direct handoff to compatible navigation applications
+- Direct track import where supported
+
+**Strategic rule:** Interoperability is additive. Portable GPX/FIT-style export remains available even when direct integrations exist.
+
+**Acceptance test:** A rider can send a generated line into supported navigation tools with substantially less manual work while Find-My-Line remains independently useful.
+
+## Phase 7 — Advanced route discovery
+
+**Goal:** Improve discovery of lines riders would not normally connect manually.
+
+**Potential capabilities:**
+- Detect promising unconnected corridors
+- Compare against known/public route networks
+- Identify likely new connections
+- Detect likely hike-a-bike sections
+- Better remoteness/scenic estimates
+- Resupply and bailout intelligence
+- Improved condition prediction
+- Route novelty analysis
+- Advanced community-derived suitability signals
+
+**Acceptance test:** Real riders can identify useful route connections not obvious from existing published route collections, and field testing validates a meaningful proportion of discoveries.
+
+## Phase 8 — Mature ecosystem integrations
+
+**Goal:** Make Find-My-Line a route-discovery layer that works naturally with the broader navigation ecosystem.
+
+Potential integrations may include navigation apps, GPS computers, route-management services, and other tools where APIs and agreements permit.
+
+This phase is intentionally late. The project should first establish that its unique route-discovery engine and community/data intelligence are valuable independently.
 
 ---
 
-## 14. MVP Scope
+# 15. MVP Scope
 
-The first working version should prove only the central concept.
+The first MVP is **Phase 1**, not the entire future product.
 
-### MVP must:
+It must:
 
 1. Accept a start point.
 2. Accept a destination.
-3. Allow basic bikepacking routing preferences.
-4. Generate more than one route where possible.
-5. Prefer appropriate unpaved riding according to those preferences.
-6. Avoid known inappropriate/illegal segments where data allows.
-7. Calculate basic route statistics.
-8. Display the route candidates.
-9. Export at least GPX.
-10. Work as a useful planning tool without requiring Find-My-Line to perform navigation.
+3. Allow basic bikepacking preferences.
+4. Generate multiple useful candidates where possible.
+5. Favor suitable unpaved riding.
+6. Avoid known inappropriate/illegal segments where data permits.
+7. Calculate basic statistics.
+8. Display candidates.
+9. Export GPX.
+10. Work without becoming a navigation app.
 
-### MVP should not require:
-
-- User accounts
-- Social networking
-- Route publishing
-- Turn-by-turn navigation
-- Live tracking
-- Native integrations with every navigation provider
-- A massive proprietary trail database
-- A custom routing engine
+Everything else is earned through later phases and testing.
 
 ---
 
-## 15. Post-MVP Development
+# 16. Testing Philosophy
 
-After the core route-generation concept works:
+Development should proceed from real-world tests rather than feature accumulation.
 
-### Phase 2 — Better routing
+Each phase should have unit tests where appropriate, data validation tests, representative route cases, failure cases, acceptance tests, and real-world riding validation whenever physical route behavior is involved.
 
-- More routing parameters
-- Better alternative generation
-- Better surface classification
-- Improved trail suitability
-- Better access handling
-- More reliable elevation analysis
-- Route comparison tools
+A route that looks excellent numerically but is miserable, illegal, closed, impassable, or inappropriate for the selected bike is a routing failure.
 
-### Phase 3 — Better data
-
-- Additional authoritative datasets
-- More regions/countries
-- Closure and seasonal information
-- Better POI data
-- Automated data refresh
-- Improved provenance/confidence system
-
-### Phase 4 — Export/integration
-
-Make it increasingly easy to hand a route to existing tools.
-
-Potential targets can include navigation apps, GPS computers, and route-management services where technically and legally practical.
-
-The goal is interoperability, not platform lock-in.
-
-### Phase 5 — Route intelligence
-
-Potential advanced capabilities:
-
-- Identify gaps between existing route networks
-- Detect promising unconnected trail/road corridors
-- Compare generated routes against known published routes
-- Automatically identify difficult sections
-- Detect likely hike-a-bike segments
-- Suggest resupply/camping opportunities
-- Improve route generation from rider feedback
+Maintain a growing regression suite of known-good and known-bad routes so improvements do not silently break previously solved problems.
 
 ---
 
-## 16. Technical Principles
+# 17. Technical Principles
 
 ### Open source first
-
-Prefer open-source components with permissive licenses and active development.
+Prefer open-source components with active development and compatible licenses.
 
 ### Modular architecture
-
-Keep data ingestion, normalization, routing, analysis, and export separate.
+Keep data ingestion, normalization, routing, AI interpretation, route evaluation, community intelligence, and export separate.
 
 ### Replaceable routing engine
+Do not couple the application permanently to BRouter or any other single engine.
 
-Do not couple the entire application to one routing engine.
-
-### Reproducible routes
-
-Given the same source data, routing configuration, and inputs, the system should produce reproducible results where practical.
+### Small local AI
+Use the smallest model that reliably performs the specialized Find-My-Line language/evaluation tasks.
 
 ### Explainable routing
+Prefer concrete explanations such as:
 
-The system should eventually be able to explain why a route was selected:
-
-> "This route is 82% unpaved, avoids the highway, and adds 11 miles compared with the more direct option."
-
-This is much more useful than presenting an unexplained route score.
+> "This option is 82% unpaved, avoids the highway, and adds 11 miles compared with the direct option."
 
 ### Don't hide uncertainty
+Unknown access, surface, condition, or legality should be represented as uncertainty rather than false certainty.
 
-If access, surface, trail condition, or legality is uncertain, show that uncertainty rather than presenting it as fact.
+### Portable routes
+GPX and other standard formats preserve the rider's freedom to choose navigation software.
 
----
-
-## 17. Success Criteria
-
-The project succeeds if a rider can enter two places where they want to travel and discover a practical bikepacking route that they might not have thought to connect manually.
-
-The route does not need to replace the rider's existing navigation application.
-
-In fact, the intended workflow is:
-
-**Find-My-Line finds the line → the rider's existing navigation tool follows the line.**
-
-That separation is a feature, not a limitation.
+### Incremental delivery
+Every phase should leave behind a working capability that can be tested in the real world.
 
 ---
 
-## 18. Initial Development Order
+# 18. Success Criteria
 
-1. Define the route data model.
-2. Select the first geographic region for development/testing.
-3. Obtain and normalize OSM routing data.
-4. Evaluate BRouter integration.
-5. Build the first bikepacking routing profile.
-6. Implement start/destination routing.
-7. Implement alternative-route generation.
-8. Calculate route statistics.
-9. Build the simplest usable results UI.
-10. Add GPX export.
-11. Test generated routes against real-world riding conditions.
-12. Improve routing weights based on actual failures.
-13. Add additional authoritative datasets.
-14. Expand export formats and integrations.
+The project succeeds if a rider can enter two places and discover a practical bikepacking line they might not have connected manually.
 
-Real-world route testing should drive routing improvements. A route that looks excellent numerically but is miserable, illegal, closed, or impossible to ride is a routing failure.
+The long-term loop is:
+
+**Rider intent → local AI → routing engine → candidate lines → route intelligence → rider chooses → existing navigation tool follows → optional ride data improves Find-My-Line.**
 
 ---
 
-## 19. Guiding Principle
+# 19. Guiding Principle
 
-> **Find-My-Line should do one thing exceptionally well: find bikepacking routes worth riding, then get out of the rider's way and let their preferred navigation tool handle the ride.**
+> **Find-My-Line should do one thing exceptionally well: find bikepacking routes worth riding, then get out of the rider's way and let the rider's preferred navigation tool handle the ride.**
